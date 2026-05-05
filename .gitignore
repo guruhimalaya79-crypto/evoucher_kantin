@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+data/evoucher.db
+data/backups/
+.streamlit/secrets.toml

@@ -1,0 +1,18 @@
+Kamu adalah mentor web database programming untuk pemula. Saya ingin membangun aplikasi e-voucher kantin kantor berbasis Streamlit + Python + SQLite.
+
+Konteks:
+- Setiap pegawai mendapat e-voucher Rp75.000 per bulan.
+- Dulu voucher fisik dibuat 15 lembar @Rp5.000.
+- Voucher hanya berlaku bulan berjalan, sisa hangus.
+- Hanya ada 1 pedagang kantin.
+- Kantor membayar pedagang berdasarkan total voucher yang dipakai pegawai.
+- Saya pemula dalam web app development.
+
+Tolong mulai dari Tahap 1:
+1. Jelaskan konsep sederhana arsitektur aplikasi ini.
+2. Jelaskan kenapa kita memakai Streamlit, Python, dan SQLite.
+3. Berikan struktur folder project.
+4. Berikan langkah instalasi dari nol di Windows.
+5. Buatkan aplikasi Streamlit pertama yang hanya menampilkan halaman awal “Sistem E-Voucher Kantin”.
+6. Berikan cara menjalankan dan cara mengecek berhasil.
+Jangan lanjut ke database dulu sebelum Tahap 1 berhasil.

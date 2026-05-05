@@ -1,0 +1,320 @@
+from io import BytesIO
+
+import pandas as pd
+
+from database import (
+    get_merchant_payment_report,
+    get_transactions_by_period,
+    get_employee_balance_report,
+    get_menu_usage_report,
+    get_daily_usage_report,
+    get_division_usage_report,
+)
+from utils import get_now_text
+
+
+def build_merchant_payment_dataframe(period_month):
+    data = get_merchant_payment_report(period_month)
+    df = pd.DataFrame(data)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Pedagang",
+                "Jumlah Transaksi",
+                "Jumlah Pegawai",
+                "Total Belanja",
+                "Total Dibayar Kantor",
+                "Total Tunai",
+            ]
+        )
+
+    df = df.rename(
+        columns={
+            "merchant_name": "Pedagang",
+            "total_transactions": "Jumlah Transaksi",
+            "total_employees": "Jumlah Pegawai",
+            "total_sales": "Total Belanja",
+            "total_voucher_payment": "Total Dibayar Kantor",
+            "total_cash": "Total Tunai",
+        }
+    )
+
+    return df[
+        [
+            "Pedagang",
+            "Jumlah Transaksi",
+            "Jumlah Pegawai",
+            "Total Belanja",
+            "Total Dibayar Kantor",
+            "Total Tunai",
+        ]
+    ]
+
+
+def build_transactions_dataframe(period_month):
+    data = get_transactions_by_period(period_month)
+    df = pd.DataFrame(data)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "ID",
+                "Waktu Input",
+                "Tanggal",
+                "Periode",
+                "Kode Pegawai",
+                "Nama Pegawai",
+                "Divisi",
+                "Pedagang",
+                "Total Belanja",
+                "Voucher",
+                "Tunai",
+                "Status",
+                "Catatan",
+                "Diinput Oleh",
+                "Waktu Void",
+                "Alasan Void",
+            ]
+        )
+
+    df["Status"] = df["voided_at"].apply(
+        lambda value: "Valid" if pd.isna(value) or value is None else "Void"
+    )
+
+    df = df.rename(
+        columns={
+            "id": "ID",
+            "created_at": "Waktu Input",
+            "transaction_date": "Tanggal",
+            "period_month": "Periode",
+            "employee_code": "Kode Pegawai",
+            "full_name": "Nama Pegawai",
+            "division_name": "Divisi",
+            "merchant_name": "Pedagang",
+            "total_amount": "Total Belanja",
+            "voucher_amount": "Voucher",
+            "cash_amount": "Tunai",
+            "notes": "Catatan",
+            "created_by_username": "Diinput Oleh",
+            "voided_at": "Waktu Void",
+            "void_reason": "Alasan Void",
+        }
+    )
+
+    return df[
+        [
+            "ID",
+            "Waktu Input",
+            "Tanggal",
+            "Periode",
+            "Kode Pegawai",
+            "Nama Pegawai",
+            "Divisi",
+            "Pedagang",
+            "Total Belanja",
+            "Voucher",
+            "Tunai",
+            "Status",
+            "Catatan",
+            "Diinput Oleh",
+            "Waktu Void",
+            "Alasan Void",
+        ]
+    ]
+
+
+def build_employee_balance_dataframe(period_month):
+    data = get_employee_balance_report(period_month)
+    df = pd.DataFrame(data)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Kode Pegawai",
+                "Nama Pegawai",
+                "Divisi",
+                "Alokasi",
+                "Terpakai",
+                "Sisa",
+            ]
+        )
+
+    df = df.rename(
+        columns={
+            "employee_code": "Kode Pegawai",
+            "full_name": "Nama Pegawai",
+            "division_name": "Divisi",
+            "amount_allocated": "Alokasi",
+            "used_amount": "Terpakai",
+            "remaining_balance": "Sisa",
+        }
+    )
+
+    return df[
+        [
+            "Kode Pegawai",
+            "Nama Pegawai",
+            "Divisi",
+            "Alokasi",
+            "Terpakai",
+            "Sisa",
+        ]
+    ]
+
+
+def build_menu_usage_dataframe(period_month):
+    data = get_menu_usage_report(period_month)
+    df = pd.DataFrame(data)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Menu",
+                "Total Qty",
+                "Total Nilai",
+            ]
+        )
+
+    df = df.rename(
+        columns={
+            "item_name_snapshot": "Menu",
+            "total_quantity": "Total Qty",
+            "total_subtotal": "Total Nilai",
+        }
+    )
+
+    return df[
+        [
+            "Menu",
+            "Total Qty",
+            "Total Nilai",
+        ]
+    ]
+
+
+def build_daily_usage_dataframe(period_month):
+    data = get_daily_usage_report(period_month)
+    df = pd.DataFrame(data)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Tanggal",
+                "Jumlah Transaksi",
+                "Jumlah Pegawai",
+                "Total Voucher",
+            ]
+        )
+
+    df = df.rename(
+        columns={
+            "transaction_date": "Tanggal",
+            "total_transactions": "Jumlah Transaksi",
+            "total_employees": "Jumlah Pegawai",
+            "total_voucher": "Total Voucher",
+        }
+    )
+
+    return df[
+        [
+            "Tanggal",
+            "Jumlah Transaksi",
+            "Jumlah Pegawai",
+            "Total Voucher",
+        ]
+    ]
+
+
+def build_division_usage_dataframe(period_month):
+    data = get_division_usage_report(period_month)
+    df = pd.DataFrame(data)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Divisi",
+                "Jumlah Transaksi",
+                "Jumlah Pegawai",
+                "Total Voucher",
+            ]
+        )
+
+    df = df.rename(
+        columns={
+            "division_name": "Divisi",
+            "total_transactions": "Jumlah Transaksi",
+            "total_employees": "Jumlah Pegawai",
+            "total_voucher": "Total Voucher",
+        }
+    )
+
+    return df[
+        [
+            "Divisi",
+            "Jumlah Transaksi",
+            "Jumlah Pegawai",
+            "Total Voucher",
+        ]
+    ]
+
+
+def autosize_excel_columns(writer, sheet_name, dataframe):
+    worksheet = writer.sheets[sheet_name]
+
+    for idx, column in enumerate(dataframe.columns, start=1):
+        max_length = len(str(column))
+
+        for value in dataframe[column]:
+            if value is not None:
+                max_length = max(max_length, len(str(value)))
+
+        adjusted_width = min(max_length + 2, 45)
+        column_letter = worksheet.cell(row=1, column=idx).column_letter
+        worksheet.column_dimensions[column_letter].width = adjusted_width
+
+
+def build_excel_report(period_month):
+    """
+    Membuat file Excel multi-sheet dalam bentuk BytesIO.
+    Nanti dipakai oleh st.download_button().
+    """
+    output = BytesIO()
+
+    merchant_df = build_merchant_payment_dataframe(period_month)
+    transactions_df = build_transactions_dataframe(period_month)
+    balance_df = build_employee_balance_dataframe(period_month)
+    menu_df = build_menu_usage_dataframe(period_month)
+    daily_df = build_daily_usage_dataframe(period_month)
+    division_df = build_division_usage_dataframe(period_month)
+
+    metadata_df = pd.DataFrame(
+        [
+            {"Keterangan": "Periode", "Nilai": period_month},
+            {"Keterangan": "Dibuat Pada", "Nilai": get_now_text()},
+            {"Keterangan": "Aplikasi", "Nilai": "Sistem E-Voucher Kantin"},
+        ]
+    )
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        metadata_df.to_excel(writer, index=False, sheet_name="Info")
+        merchant_df.to_excel(writer, index=False, sheet_name="Pembayaran Pedagang")
+        transactions_df.to_excel(writer, index=False, sheet_name="Transaksi")
+        balance_df.to_excel(writer, index=False, sheet_name="Saldo Pegawai")
+        menu_df.to_excel(writer, index=False, sheet_name="Rekap Menu")
+        daily_df.to_excel(writer, index=False, sheet_name="Rekap Harian")
+        division_df.to_excel(writer, index=False, sheet_name="Rekap Divisi")
+
+        for sheet_name, df in {
+            "Info": metadata_df,
+            "Pembayaran Pedagang": merchant_df,
+            "Transaksi": transactions_df,
+            "Saldo Pegawai": balance_df,
+            "Rekap Menu": menu_df,
+            "Rekap Harian": daily_df,
+            "Rekap Divisi": division_df,
+        }.items():
+            autosize_excel_columns(writer, sheet_name, df)
+
+    output.seek(0)
+    return output
