@@ -194,6 +194,7 @@ def show_user_sidebar():
             - ⚙️ Setting Aplikasi
             - 👤 Manajemen User
             - 🔐 Ganti Password
+            - 📘 Panduan Penggunaan
             """
         )
 
@@ -203,6 +204,7 @@ def show_user_sidebar():
             - 🧾 Kasir POS
             - 👤 Saldo Pegawai
             - 🔐 Ganti Password
+            - 📘 Panduan Penggunaan
             """
         )
 
@@ -211,6 +213,7 @@ def show_user_sidebar():
             """
             - 👤 Saldo Pegawai
             - 🔐 Ganti Password
+            - 📘 Panduan Penggunaan
             """
         )
 
