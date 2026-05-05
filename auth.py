@@ -1,6 +1,8 @@
 import bcrypt
 import streamlit as st
 
+from menu import show_role_menu
+
 from database import (
     get_user_by_username,
     get_user_by_id,
@@ -162,67 +164,19 @@ def require_roles(allowed_roles):
 
 def show_user_sidebar():
     """
-    Menampilkan informasi user dan panduan menu di sidebar.
+    Menampilkan informasi user, menu sesuai role, dan tombol logout.
     """
     if not st.session_state.get("is_logged_in"):
         return
 
-    role = st.session_state.get("role")
-
-    st.sidebar.divider()
     st.sidebar.write("Login sebagai:")
     st.sidebar.write(f"**{st.session_state.username}**")
-    st.sidebar.write(f"Role: `{role}`")
+    st.sidebar.write(f"Role: `{st.session_state.role}`")
 
-    st.sidebar.divider()
-    st.sidebar.write("Menu yang disarankan:")
-
-    if role == "admin":
-        st.sidebar.markdown(
-            """
-            - 📊 Admin Dashboard
-            - 🏢 Master Divisi
-            - 👥 Master Pegawai
-            - 📥 Import Pegawai
-            - 🪪 Generate User Pegawai
-            - 🍱 Master Kategori Menu
-            - 🍛 Master Menu Makanan
-            - 📥 Import Menu Makanan
-            - 🎫 Generate Voucher
-            - 🧾 Kasir POS
-            - 👤 Saldo Pegawai
-            - 🚫 Void Transaksi
-            - 📑 Laporan
-            - 💾 Backup Database
-            - ⚙️ Setting Aplikasi
-            - 👤 Manajemen User
-            - 🔐 Ganti Password
-            - 📘 Panduan Penggunaan
-            - ♻️ Reset Database Demo
-            """
-        )
-
-    elif role == "kasir":
-        st.sidebar.markdown(
-            """
-            - 🧾 Kasir POS
-            - 👤 Saldo Pegawai
-            - 🔐 Ganti Password
-            - 📘 Panduan Penggunaan
-            """
-        )
-
-    elif role == "pegawai":
-        st.sidebar.markdown(
-            """
-            - 👤 Saldo Pegawai
-            - 🔐 Ganti Password
-            - 📘 Panduan Penggunaan
-            """
-        )
+    show_role_menu()
 
     st.sidebar.divider()
 
     if st.sidebar.button("Logout"):
         logout_user()
-        st.rerun()
+        st.switch_page("app.py")

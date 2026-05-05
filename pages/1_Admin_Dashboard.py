@@ -71,7 +71,8 @@ st.dataframe(df_summary, use_container_width=True)
 
 st.info(
     """
-    Paket Final B berhasil jika dashboard ini bisa dibuka oleh admin,
-    tetapi tidak bisa dibuka oleh kasir atau pegawai.
+    Dashboard ini menampilkan ringkasan data utama aplikasi e-voucher kantin.
+    Gunakan menu laporan untuk melihat detail transaksi, pembayaran pedagang,
+    dan export data.
     """
 )
