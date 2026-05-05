@@ -398,3 +398,60 @@ def build_employee_import_template():
 
     output.seek(0)
     return output
+
+def build_generated_credentials_excel(credentials):
+    """
+    Membuat Excel berisi username dan password awal hasil generate.
+    File ini sebaiknya hanya dipegang admin.
+    """
+    output = BytesIO()
+
+    df_credentials = pd.DataFrame(credentials)
+
+    if df_credentials.empty:
+        df_credentials = pd.DataFrame(
+            columns=[
+                "employee_code",
+                "full_name",
+                "division_name",
+                "username",
+                "initial_password",
+                "role",
+            ]
+        )
+
+    df_credentials = df_credentials.rename(
+        columns={
+            "employee_code": "Kode Pegawai",
+            "full_name": "Nama Pegawai",
+            "division_name": "Divisi",
+            "username": "Username",
+            "initial_password": "Password Awal",
+            "role": "Role",
+        }
+    )
+
+    instruction_df = pd.DataFrame(
+        [
+            {
+                "Catatan": "File ini berisi password awal. Simpan dengan aman dan jangan dibagikan sembarangan."
+            },
+            {
+                "Catatan": "Pegawai disarankan mengganti password setelah login pertama."
+            },
+            {
+                "Catatan": "Jika password lupa, admin dapat reset password dari halaman Manajemen User."
+            },
+        ]
+    )
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df_credentials.to_excel(writer, index=False, sheet_name="akun_pegawai")
+        instruction_df.to_excel(writer, index=False, sheet_name="catatan")
+
+        autosize_excel_columns(writer, "akun_pegawai", df_credentials)
+        autosize_excel_columns(writer, "catatan", instruction_df)
+
+    output.seek(0)
+    return output
+

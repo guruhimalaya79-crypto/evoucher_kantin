@@ -3520,3 +3520,254 @@ def import_employees_from_dataframe(df, imported_by=None):
         "skipped": skipped,
         "errors": errors,
     }
+
+# =========================================================
+# GENERATE USER PEGAWAI OTOMATIS
+# =========================================================
+
+def sanitize_username_from_employee_code(employee_code):
+    """
+    Membuat username dari kode pegawai.
+    Contoh:
+    EMP001 -> emp001
+    NIP-2024-001 -> nip2024001
+    """
+    raw = str(employee_code).strip().lower()
+
+    allowed_chars = []
+
+    for char in raw:
+        if char.isalnum():
+            allowed_chars.append(char)
+
+    username = "".join(allowed_chars)
+
+    return username
+
+
+def get_employees_for_user_generation(only_active=True):
+    """
+    Mengambil pegawai yang belum punya user.
+    Default hanya pegawai aktif.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    if only_active:
+        cursor.execute(
+            """
+            SELECT
+                e.id,
+                e.employee_code,
+                e.full_name,
+                COALESCE(d.division_name, '-') AS division_name,
+                e.is_active
+            FROM employees e
+            LEFT JOIN divisions d ON d.id = e.division_id
+            WHERE e.is_active = 1
+            AND e.id NOT IN (
+                SELECT employee_id
+                FROM users
+                WHERE employee_id IS NOT NULL
+            )
+            ORDER BY e.employee_code ASC
+            """
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT
+                e.id,
+                e.employee_code,
+                e.full_name,
+                COALESCE(d.division_name, '-') AS division_name,
+                e.is_active
+            FROM employees e
+            LEFT JOIN divisions d ON d.id = e.division_id
+            WHERE e.id NOT IN (
+                SELECT employee_id
+                FROM users
+                WHERE employee_id IS NOT NULL
+            )
+            ORDER BY e.employee_code ASC
+            """
+        )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+def generate_employee_users(
+    only_active=True,
+    password_suffix="123",
+    created_by=None,
+):
+    """
+    Generate akun user otomatis untuk pegawai yang belum punya user.
+
+    Username:
+    - dari employee_code lowercase dan hanya alphanumeric
+
+    Password awal:
+    - username + password_suffix
+    - contoh username emp001 + 123 = emp001123
+    """
+    employees = get_employees_for_user_generation(only_active=only_active)
+
+    created = 0
+    skipped = 0
+    errors = []
+    generated_credentials = []
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    for employee in employees:
+        employee_id = employee["id"]
+        employee_code = employee["employee_code"]
+        full_name = employee["full_name"]
+        division_name = employee["division_name"]
+
+        username = sanitize_username_from_employee_code(employee_code)
+
+        if username == "":
+            errors.append(
+                f"{employee_code} - {full_name}: username hasil generate kosong."
+            )
+            continue
+
+        initial_password = f"{username}{password_suffix}"
+
+        try:
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM users
+                WHERE LOWER(username) = LOWER(?)
+                """,
+                (username,)
+            )
+
+            username_already_exists = cursor.fetchone()["total"] > 0
+
+            if username_already_exists:
+                skipped += 1
+                errors.append(
+                    f"{employee_code} - {full_name}: username {username} sudah digunakan."
+                )
+                continue
+
+            cursor.execute(
+                """
+                INSERT INTO users
+                (
+                    username,
+                    password_hash,
+                    role,
+                    employee_id,
+                    is_active,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    username,
+                    password_to_hash(initial_password),
+                    "pegawai",
+                    employee_id,
+                    1,
+                    get_now_text(),
+                )
+            )
+
+            created += 1
+
+            generated_credentials.append(
+                {
+                    "employee_code": employee_code,
+                    "full_name": full_name,
+                    "division_name": division_name,
+                    "username": username,
+                    "initial_password": initial_password,
+                    "role": "pegawai",
+                }
+            )
+
+        except Exception as error:
+            errors.append(
+                f"{employee_code} - {full_name}: {error}"
+            )
+
+    conn.commit()
+    conn.close()
+
+    insert_audit_log(
+        user_id=created_by,
+        action="GENERATE_EMPLOYEE_USERS",
+        table_name="users",
+        record_id=None,
+        description=(
+            f"Generate user pegawai otomatis. "
+            f"Created={created}, skipped={skipped}, errors={len(errors)}"
+        )
+    )
+
+    return {
+        "success": True,
+        "message": "Generate user pegawai selesai.",
+        "created": created,
+        "skipped": skipped,
+        "errors": errors,
+        "credentials": generated_credentials,
+    }
+
+
+def get_employee_user_generation_summary():
+    """
+    Ringkasan jumlah pegawai dan akun pegawai.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM employees
+        WHERE is_active = 1
+        """
+    )
+    active_employees = cursor.fetchone()["total"]
+
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM users
+        WHERE role = 'pegawai'
+        AND employee_id IS NOT NULL
+        """
+    )
+    employee_users = cursor.fetchone()["total"]
+
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM employees
+        WHERE is_active = 1
+        AND id NOT IN (
+            SELECT employee_id
+            FROM users
+            WHERE employee_id IS NOT NULL
+        )
+        """
+    )
+    active_without_user = cursor.fetchone()["total"]
+
+    conn.close()
+
+    return {
+        "active_employees": active_employees,
+        "employee_users": employee_users,
+        "active_without_user": active_without_user,
+    }

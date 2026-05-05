@@ -184,6 +184,7 @@ def show_user_sidebar():
             - 🏢 Master Divisi
             - 👥 Master Pegawai
             - 📥 Import Pegawai
+            - 🪪 Generate User Pegawai
             - 🍱 Master Kategori Menu
             - 🍛 Master Menu Makanan
             - 🎫 Generate Voucher
