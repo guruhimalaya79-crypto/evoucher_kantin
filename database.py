@@ -3771,3 +3771,202 @@ def get_employee_user_generation_summary():
         "employee_users": employee_users,
         "active_without_user": active_without_user,
     }
+# =========================================================
+# IMPORT MENU MAKANAN DARI EXCEL
+# =========================================================
+
+def get_or_create_food_category_by_name(category_name, created_by=None):
+    """
+    Mengambil ID kategori menu berdasarkan nama.
+    Jika belum ada, kategori otomatis dibuat.
+    """
+    category_name_clean = str(category_name).strip()
+
+    if category_name_clean == "":
+        return None
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT id
+        FROM food_categories
+        WHERE LOWER(category_name) = LOWER(?)
+        """,
+        (category_name_clean,)
+    )
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        conn.close()
+        return row["id"]
+
+    cursor.execute(
+        """
+        INSERT INTO food_categories
+        (category_name, is_active, created_at)
+        VALUES (?, ?, ?)
+        """,
+        (category_name_clean, 1, get_now_text())
+    )
+
+    category_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+
+    insert_audit_log(
+        user_id=created_by,
+        action="AUTO_CREATE_FOOD_CATEGORY_IMPORT",
+        table_name="food_categories",
+        record_id=category_id,
+        description=f"Auto create kategori menu dari import: {category_name_clean}"
+    )
+
+    return category_id
+
+
+def import_food_items_from_dataframe(df, imported_by=None):
+    """
+    Import menu makanan dari pandas DataFrame.
+
+    Kolom wajib:
+    - category_name
+    - item_name
+    - price
+
+    Kolom opsional:
+    - is_active
+    """
+    required_columns = ["category_name", "item_name", "price"]
+
+    for column in required_columns:
+        if column not in df.columns:
+            return {
+                "success": False,
+                "message": f"Kolom wajib tidak ditemukan: {column}",
+                "created": 0,
+                "skipped": 0,
+                "errors": [],
+            }
+
+    created = 0
+    skipped = 0
+    errors = []
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    for index, row in df.iterrows():
+        excel_row_number = index + 2
+
+        try:
+            category_name = str(row.get("category_name", "")).strip()
+            item_name = str(row.get("item_name", "")).strip()
+
+            raw_price = row.get("price", 0)
+
+            try:
+                price = int(raw_price)
+            except Exception:
+                errors.append(
+                    f"Baris {excel_row_number}: price tidak valid."
+                )
+                continue
+
+            if "is_active" in df.columns:
+                raw_active = row.get("is_active", 1)
+
+                try:
+                    is_active = int(raw_active)
+                except Exception:
+                    is_active = 1
+
+                if is_active not in [0, 1]:
+                    is_active = 1
+            else:
+                is_active = 1
+
+            if category_name == "" or category_name.lower() == "nan":
+                errors.append(f"Baris {excel_row_number}: category_name kosong.")
+                continue
+
+            if item_name == "" or item_name.lower() == "nan":
+                errors.append(f"Baris {excel_row_number}: item_name kosong.")
+                continue
+
+            if price < 0:
+                errors.append(f"Baris {excel_row_number}: price tidak boleh negatif.")
+                continue
+
+            category_id = get_or_create_food_category_by_name(
+                category_name=category_name,
+                created_by=imported_by,
+            )
+
+            if category_id is None:
+                errors.append(f"Baris {excel_row_number}: kategori tidak valid.")
+                continue
+
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM food_items
+                WHERE category_id = ?
+                AND LOWER(item_name) = LOWER(?)
+                """,
+                (category_id, item_name)
+            )
+
+            exists = cursor.fetchone()["total"] > 0
+
+            if exists:
+                skipped += 1
+                continue
+
+            cursor.execute(
+                """
+                INSERT INTO food_items
+                (
+                    category_id,
+                    item_name,
+                    price,
+                    is_active,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    category_id,
+                    item_name,
+                    price,
+                    is_active,
+                    get_now_text(),
+                )
+            )
+
+            created += 1
+
+        except Exception as error:
+            errors.append(f"Baris {excel_row_number}: {error}")
+
+    conn.commit()
+    conn.close()
+
+    insert_audit_log(
+        user_id=imported_by,
+        action="IMPORT_FOOD_ITEMS_EXCEL",
+        table_name="food_items",
+        record_id=None,
+        description=f"Import menu makanan dari Excel. Created={created}, skipped={skipped}, errors={len(errors)}"
+    )
+
+    return {
+        "success": True,
+        "message": "Proses import menu makanan selesai.",
+        "created": created,
+        "skipped": skipped,
+        "errors": errors,
+    }

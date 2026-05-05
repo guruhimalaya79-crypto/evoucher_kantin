@@ -187,6 +187,7 @@ def show_user_sidebar():
             - 🪪 Generate User Pegawai
             - 🍱 Master Kategori Menu
             - 🍛 Master Menu Makanan
+            - 📥 Import Menu Makanan
             - 🎫 Generate Voucher
             - 🧾 Kasir POS
             - 👤 Saldo Pegawai

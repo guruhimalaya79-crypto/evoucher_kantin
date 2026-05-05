@@ -455,3 +455,79 @@ def build_generated_credentials_excel(credentials):
     output.seek(0)
     return output
 
+def build_food_item_import_template():
+    """
+    Membuat template Excel untuk import menu makanan.
+    """
+    output = BytesIO()
+
+    template_df = pd.DataFrame(
+        [
+            {
+                "category_name": "Makanan Berat",
+                "item_name": "Nasi Ayam",
+                "price": 15000,
+                "is_active": 1,
+            },
+            {
+                "category_name": "Makanan Berat",
+                "item_name": "Nasi Ikan",
+                "price": 18000,
+                "is_active": 1,
+            },
+            {
+                "category_name": "Minuman",
+                "item_name": "Es Teh",
+                "price": 5000,
+                "is_active": 1,
+            },
+            {
+                "category_name": "Snack",
+                "item_name": "Gorengan",
+                "price": 3000,
+                "is_active": 1,
+            },
+            {
+                "category_name": "Lain-lain",
+                "item_name": "Item Manual",
+                "price": 0,
+                "is_active": 1,
+            },
+        ]
+    )
+
+    instruction_df = pd.DataFrame(
+        [
+            {
+                "Kolom": "category_name",
+                "Wajib": "Ya",
+                "Keterangan": "Nama kategori menu. Jika belum ada, sistem akan membuat otomatis.",
+            },
+            {
+                "Kolom": "item_name",
+                "Wajib": "Ya",
+                "Keterangan": "Nama makanan/minuman.",
+            },
+            {
+                "Kolom": "price",
+                "Wajib": "Ya",
+                "Keterangan": "Harga menu dalam angka. Contoh: 15000.",
+            },
+            {
+                "Kolom": "is_active",
+                "Wajib": "Tidak",
+                "Keterangan": "1 = Aktif, 0 = Nonaktif. Jika kosong dianggap aktif.",
+            },
+        ]
+    )
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        template_df.to_excel(writer, index=False, sheet_name="template_menu")
+        instruction_df.to_excel(writer, index=False, sheet_name="petunjuk")
+
+        autosize_excel_columns(writer, "template_menu", template_df)
+        autosize_excel_columns(writer, "petunjuk", instruction_df)
+
+    output.seek(0)
+    return output
+
