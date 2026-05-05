@@ -483,23 +483,14 @@ def seed_users():
     ]
 
     for username, plain_password, role, employee_id in users:
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS total
-            FROM users
-            WHERE username = ?
-            """,
-            (username,)
-        )
-
-        exists = cursor.fetchone()["total"] > 0
-
-        if exists:
-            continue
+        # Jika role pegawai tetapi employee_id tidak ditemukan,
+        # user tetap dibuat tanpa relasi pegawai agar tidak gagal di cloud.
+        if role == "pegawai" and employee_id is None:
+            employee_id = None
 
         cursor.execute(
             """
-            INSERT INTO users
+            INSERT OR IGNORE INTO users
             (username, password_hash, role, employee_id, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
