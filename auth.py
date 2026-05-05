@@ -198,6 +198,7 @@ def show_user_sidebar():
             - 👤 Manajemen User
             - 🔐 Ganti Password
             - 📘 Panduan Penggunaan
+            - ♻️ Reset Database Demo
             """
         )
 

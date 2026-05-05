@@ -3970,3 +3970,129 @@ def import_food_items_from_dataframe(df, imported_by=None):
         "skipped": skipped,
         "errors": errors,
     }
+
+# =========================================================
+# RESET DATABASE DEMO
+# =========================================================
+
+def reset_demo_database(reset_by=None):
+    """
+    Reset database untuk kebutuhan demo online.
+
+    Fungsi ini akan menghapus data transaksi, alokasi, user, pegawai,
+    divisi, merchant, kategori menu, menu makanan, setting, dan audit log,
+    lalu menjalankan seed data awal kembali.
+
+    PERINGATAN:
+    Fungsi ini hanya untuk demo/testing.
+    Jangan digunakan untuk data operasional resmi.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("BEGIN")
+
+        # Matikan sementara foreign key agar delete berurutan aman
+        cursor.execute("PRAGMA foreign_keys = OFF;")
+
+        tables_to_clear = [
+            "voucher_transaction_items",
+            "voucher_transactions",
+            "monthly_allocations",
+            "audit_logs",
+            "users",
+            "food_items",
+            "food_categories",
+            "merchants",
+            "employees",
+            "divisions",
+            "settings",
+        ]
+
+        for table in tables_to_clear:
+            cursor.execute(f"DELETE FROM {table}")
+
+        # Reset autoincrement ID
+        cursor.execute("DELETE FROM sqlite_sequence")
+
+        cursor.execute("PRAGMA foreign_keys = ON;")
+
+        conn.commit()
+
+    except Exception as error:
+        conn.rollback()
+        conn.close()
+
+        return {
+            "success": False,
+            "message": f"Gagal reset database demo: {error}",
+        }
+
+    conn.close()
+
+    # Seed ulang data awal
+    seed_settings()
+    seed_divisions()
+    seed_employees()
+    seed_merchants()
+    seed_food_categories()
+    seed_food_items()
+    seed_users()
+
+    # Catat audit setelah user admin sudah dibuat ulang.
+    # Karena ID admin setelah reset biasanya kembali menjadi 1.
+    try:
+        insert_audit_log(
+            user_id=None,
+            action="RESET_DEMO_DATABASE",
+            table_name=None,
+            record_id=None,
+            description=f"Database demo direset. Request by user_id={reset_by}"
+        )
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "message": "Database demo berhasil direset dan data dummy berhasil dibuat ulang.",
+    }
+
+
+def get_demo_database_counts():
+    """
+    Ringkasan jumlah data untuk halaman reset demo.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    tables = [
+        "users",
+        "divisions",
+        "employees",
+        "merchants",
+        "food_categories",
+        "food_items",
+        "monthly_allocations",
+        "voucher_transactions",
+        "voucher_transaction_items",
+        "settings",
+        "audit_logs",
+    ]
+
+    result = []
+
+    for table in tables:
+        cursor.execute(f"SELECT COUNT(*) AS total FROM {table}")
+        total = cursor.fetchone()["total"]
+
+        result.append(
+            {
+                "table_name": table,
+                "total_rows": total,
+            }
+        )
+
+    conn.close()
+
+    return result
