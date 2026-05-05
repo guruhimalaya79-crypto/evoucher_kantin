@@ -318,3 +318,83 @@ def build_excel_report(period_month):
 
     output.seek(0)
     return output
+
+def build_employee_import_template():
+    """
+    Membuat template Excel untuk import pegawai.
+    """
+    output = BytesIO()
+
+    template_df = pd.DataFrame(
+        [
+            {
+                "employee_code": "EMP001",
+                "full_name": "Budi Santoso",
+                "division_name": "IT",
+                "phone": "081111111001",
+                "email": "budi@example.com",
+                "is_active": 1,
+            },
+            {
+                "employee_code": "EMP002",
+                "full_name": "Siti Aminah",
+                "division_name": "SDM",
+                "phone": "081111111002",
+                "email": "siti@example.com",
+                "is_active": 1,
+            },
+            {
+                "employee_code": "EMP003",
+                "full_name": "Joko Permana",
+                "division_name": "Umum",
+                "phone": "081111111003",
+                "email": "joko@example.com",
+                "is_active": 0,
+            },
+        ]
+    )
+
+    instruction_df = pd.DataFrame(
+        [
+            {
+                "Kolom": "employee_code",
+                "Wajib": "Ya",
+                "Keterangan": "Kode pegawai unik. Contoh: EMP001",
+            },
+            {
+                "Kolom": "full_name",
+                "Wajib": "Ya",
+                "Keterangan": "Nama lengkap pegawai.",
+            },
+            {
+                "Kolom": "division_name",
+                "Wajib": "Ya",
+                "Keterangan": "Nama divisi. Jika belum ada, sistem akan membuat otomatis.",
+            },
+            {
+                "Kolom": "phone",
+                "Wajib": "Tidak",
+                "Keterangan": "Nomor HP pegawai.",
+            },
+            {
+                "Kolom": "email",
+                "Wajib": "Tidak",
+                "Keterangan": "Email pegawai.",
+            },
+            {
+                "Kolom": "is_active",
+                "Wajib": "Tidak",
+                "Keterangan": "1 = Aktif, 0 = Nonaktif. Jika kosong dianggap aktif.",
+            },
+        ]
+    )
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        template_df.to_excel(writer, index=False, sheet_name="template_pegawai")
+        instruction_df.to_excel(writer, index=False, sheet_name="petunjuk")
+
+        autosize_excel_columns(writer, "template_pegawai", template_df)
+        autosize_excel_columns(writer, "petunjuk", instruction_df)
+
+    output.seek(0)
+    return output

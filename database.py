@@ -3322,3 +3322,201 @@ def get_employees_without_user():
     conn.close()
 
     return [dict(row) for row in rows]
+
+# =========================================================
+# IMPORT PEGAWAI DARI EXCEL
+# =========================================================
+
+def get_or_create_division_by_name(division_name, created_by=None):
+    """
+    Mengambil ID divisi berdasarkan nama.
+    Jika belum ada, divisi otomatis dibuat.
+    """
+    division_name_clean = str(division_name).strip()
+
+    if division_name_clean == "":
+        return None
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT id
+        FROM divisions
+        WHERE LOWER(division_name) = LOWER(?)
+        """,
+        (division_name_clean,)
+    )
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        conn.close()
+        return row["id"]
+
+    cursor.execute(
+        """
+        INSERT INTO divisions
+        (division_name, is_active, created_at)
+        VALUES (?, ?, ?)
+        """,
+        (division_name_clean, 1, get_now_text())
+    )
+
+    division_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+
+    insert_audit_log(
+        user_id=created_by,
+        action="AUTO_CREATE_DIVISION_IMPORT",
+        table_name="divisions",
+        record_id=division_id,
+        description=f"Auto create divisi dari import pegawai: {division_name_clean}"
+    )
+
+    return division_id
+
+
+def import_employees_from_dataframe(df, imported_by=None):
+    """
+    Import pegawai dari pandas DataFrame.
+
+    Kolom wajib:
+    - employee_code
+    - full_name
+    - division_name
+
+    Kolom opsional:
+    - phone
+    - email
+    - is_active
+    """
+    required_columns = ["employee_code", "full_name", "division_name"]
+
+    for column in required_columns:
+        if column not in df.columns:
+            return {
+                "success": False,
+                "message": f"Kolom wajib tidak ditemukan: {column}",
+                "created": 0,
+                "skipped": 0,
+                "errors": [],
+            }
+
+    created = 0
+    skipped = 0
+    errors = []
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    for index, row in df.iterrows():
+        excel_row_number = index + 2
+
+        try:
+            employee_code = str(row.get("employee_code", "")).strip().upper()
+            full_name = str(row.get("full_name", "")).strip()
+            division_name = str(row.get("division_name", "")).strip()
+            phone = str(row.get("phone", "")).strip() if "phone" in df.columns else ""
+            email = str(row.get("email", "")).strip() if "email" in df.columns else ""
+
+            if "is_active" in df.columns:
+                raw_active = row.get("is_active", 1)
+
+                try:
+                    is_active = int(raw_active)
+                except Exception:
+                    is_active = 1
+
+                if is_active not in [0, 1]:
+                    is_active = 1
+            else:
+                is_active = 1
+
+            if employee_code == "" or employee_code.lower() == "nan":
+                errors.append(f"Baris {excel_row_number}: employee_code kosong.")
+                continue
+
+            if full_name == "" or full_name.lower() == "nan":
+                errors.append(f"Baris {excel_row_number}: full_name kosong.")
+                continue
+
+            if division_name == "" or division_name.lower() == "nan":
+                errors.append(f"Baris {excel_row_number}: division_name kosong.")
+                continue
+
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM employees
+                WHERE LOWER(employee_code) = LOWER(?)
+                """,
+                (employee_code,)
+            )
+
+            exists = cursor.fetchone()["total"] > 0
+
+            if exists:
+                skipped += 1
+                continue
+
+            division_id = get_or_create_division_by_name(
+                division_name=division_name,
+                created_by=imported_by,
+            )
+
+            if division_id is None:
+                errors.append(f"Baris {excel_row_number}: divisi tidak valid.")
+                continue
+
+            cursor.execute(
+                """
+                INSERT INTO employees
+                (
+                    employee_code,
+                    full_name,
+                    division_id,
+                    phone,
+                    email,
+                    is_active,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    employee_code,
+                    full_name,
+                    division_id,
+                    phone,
+                    email,
+                    is_active,
+                    get_now_text(),
+                )
+            )
+
+            created += 1
+
+        except Exception as error:
+            errors.append(f"Baris {excel_row_number}: {error}")
+
+    conn.commit()
+    conn.close()
+
+    insert_audit_log(
+        user_id=imported_by,
+        action="IMPORT_EMPLOYEES_EXCEL",
+        table_name="employees",
+        record_id=None,
+        description=f"Import pegawai dari Excel. Created={created}, skipped={skipped}, errors={len(errors)}"
+    )
+
+    return {
+        "success": True,
+        "message": "Proses import pegawai selesai.",
+        "created": created,
+        "skipped": skipped,
+        "errors": errors,
+    }

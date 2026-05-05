@@ -183,6 +183,7 @@ def show_user_sidebar():
             - 📊 Admin Dashboard
             - 🏢 Master Divisi
             - 👥 Master Pegawai
+            - 📥 Import Pegawai
             - 🍱 Master Kategori Menu
             - 🍛 Master Menu Makanan
             - 🎫 Generate Voucher
